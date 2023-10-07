@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    command: /bin/bash entrypoint.sh
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/{project_name}/app
+      - migrations-api:/{project_name}/app/api/migrations
+      - static:/{project_name}/static
+      - media:/{project_name}/media
+    depends_on:
+      - db
+      - memcached
+
+  db:
+    image: postgres
+    environment:
+      - POSTGRES_DB=${DJANGO_DB_NAME}
+      - POSTGRES_USER=${DJANGO_DB_USER}
+      - POSTGRES_PASSWORD=${DJANGO_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  memcached:
+    image: memcached
+    ports:
+      - "11211:11211"
+
+  rabbitmq:
+    image: rabbitmq
+    ports:
+      - "5672:5672"
+    volumes:
+      - ./app:/{project_name}/app
+      - static:/{project_name}/static
+      - media:/{project_name}/media
+
+  celery_worker:
+    build: .
+    command: /bin/bash run-celery.sh
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./app:/{project_name}/app
+      - static:/{project_name}/static
+      - media:/{project_name}/media
+
+  celery_scheduler:
+    build: .
+    command: /bin/bash run-sheduler.sh
+    depends_on:
+      - rabbitmq
+    volumes:
+      - ./app:/{project_name}/app
+      - static:/{project_name}/static
+      - media:/{project_name}/media
+
+volumes:
+  postgres-data:
+  migrations-api:
+  static:
+  media:
